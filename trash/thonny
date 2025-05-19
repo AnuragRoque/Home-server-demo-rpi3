@@ -1,0 +1,58 @@
+from machine import Pin, ADC
+import time
+from dht import DHT11
+
+# DHT11 setup
+led = Pin(25, Pin.OUT)
+sensor = DHT11(Pin(4))  # DHT on GP4
+
+# MQ sensor setup
+mq_analog = ADC(Pin(26))         # AO → GP26 (ADC0)
+mq_digital = Pin(14, Pin.IN)     # DO → GP14
+R_L = 10.0                       # kΩ
+V_SUPPLY = 5.0                   # Power supply to MQ sensor
+R_0 = 10.0                       # Resistance in clean air
+
+# PIR Motion sensor setup
+pir = Pin(2, Pin.IN)  # Motion sensor connected to GP15
+
+def calculate_aqi(analog_value):
+    v_sensor = (analog_value / 65535.0) * 3.3
+    if v_sensor == 0:
+        return 0
+    r_s = R_L * (V_SUPPLY - v_sensor) / v_sensor
+    ratio = r_s / R_0
+
+    if ratio > 10:
+        return 50
+    elif ratio > 5:
+        return 100
+    elif ratio > 2:
+        return 150
+    elif ratio > 1:
+        return 200
+    else:
+        return 300
+
+# Sensor warm-up
+time.sleep(2)
+
+while True:
+    try:
+        temp = int(sensor.temperature)
+        humidity = int(sensor.humidity)
+        analog_value = mq_analog.read_u16()
+        aqi = calculate_aqi(analog_value)
+        gas_detected = int(mq_digital.value() == 0)  # 1 if gas detected
+        motion_detected = int(pir.value())           # 1 if motion detected
+
+        # Output for serial read — updated with motion data
+        print(f"{temp},{humidity},{aqi},{gas_detected},{motion_detected}")
+
+        led.toggle()
+        time.sleep(5)
+
+    except OSError as e:
+        print("0,0,0,0,0")
+       # Output dummy values to keep serial reader alive
+

@@ -1,0 +1,6 @@
+pyserial
+python-dotenv
+pyotp
+Flask
+Flask-Mail
+requests

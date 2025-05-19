@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .twofa-box {
+      background: #1a2233;
+      border: 1px solid #2952a3;
+      border-radius: 10px;
+      padding: 18px 16px 14px 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 8px #0003;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .twofa-box label {
+      color: #6ea8fe;
+      font-weight: bold;
+      margin-bottom: 8px;
+      text-align: center;
+      font-size: 1.08em;
+    }
+    .twofa-box input[type="text"] {
+      background: #232c3b;
+      border: 1px solid #2952a3;
+      color: #e0e6ed;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 1em;
+      margin-bottom: 10px;
+      outline: none;
+      text-align: center;
+      letter-spacing: 2px;
+      font-family: monospace;
+    }
+    .login-username {
+      color: #a3bffa;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 8px;
+      font-size: 1.08em;
+      letter-spacing: 0.5px;
+    }
+    .login-desc {
+      color: #7b93c9;
+      text-align: center;
+      margin-bottom: 18px;
+      font-size: 0.98em;
+    }
+    @media (max-width: 500px) {
+      .twofa-box {
+        padding: 12px 6vw 10px 6vw;
+      }
+    }
+  </style>
+</head>
+<body>
+  <form class="login-box" method="post">
+    <h2 style="color:#6ea8fe; margin-bottom:8px;">Login</h2>
+    <!-- <div class="login-username">User: Admin</div> -->
+     <br>
+    <input type="text" name="text" placeholder="Admin" required disabled>
+    
+    
+    <!-- <div class="login-desc">
+      Secure access to your Home Server Dashboard.<br>
+      {% if require_2fa %}
+        Enter your 2FA code from your authenticator app.
+      {% else %}
+        Enter your password to continue.
+      {% endif %}
+    </div> -->
+    {% if error %}
+      <div style="color:#f56565; background:#1a2233; border-radius:6px; padding:8px 10px; margin-bottom:12px; text-align:center;">
+        {{ error }}
+      </div>
+    {% endif %}
+    {% if require_2fa %}
+      <div class="twofa-box">
+        <label for="totp">Enter 2FA Code</label>
+        <input type="text" name="totp" id="totp" placeholder="123456" required autocomplete="one-time-code" inputmode="numeric" maxlength="8">
+      </div>
+    {% else %}
+      <input type="password" name="password" placeholder="Enter password" required>
+    {% endif %}
+    <input type="submit" value="Login">
+    <button type="button" onclick="window.location.href='/demo'" style="margin-top:14px; background:#4fd1c5; color:#232c3b; border:none; border-radius:8px; padding:10px 0; font-size:1.08em; font-weight:bold; cursor:pointer; width:100%;">
+      View Demo
+    </button>
+  </form>
+</body>
+</html>

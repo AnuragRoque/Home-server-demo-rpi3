@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Home Sensor Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    {% if demo_mode %}
+      <div style="background:#4fd1c5;color:#232c3b;padding:12px 0;text-align:center;border-radius:10px;margin-bottom:18px;font-weight:bold;letter-spacing:1px;">
+        Demo Mode: Data shown is for demonstration only.
+      </div>
+    {% endif %}
+    <div class="dashboard-title">
+      <!-- <h1>🏡 DualSense Environment Dashboard</h1> -->
+      <h1>🏡 Smart Home & Weather Dashboard</h1>
+      {% if not demo_mode %}
+        <a href="/logout" class="logout">Logout</a>
+      {% endif %}
+    </div>
+    <!-- Tabs content -->
+    <div id="tab-content-live">
+      <div class="cards">
+        <!-- Indoor Card -->
+        <div class="card">
+          <h2>Indoor Sensor Overview</h2>
+          <div class="data-row">
+            <span class="label">Time:</span>
+            <span id="indoor-time"><span id="live-clock"></span></span>
+            
+          </div>
+          <div class="data-row"><span class="label">Temperature:</span> <span id="indoor-temp">{{ latest[1] }}</span>°C</div>
+          <div class="data-row"><span class="label">Humidity:</span> <span id="indoor-hum">{{ latest[2] }}</span>%</div>
+          <div class="data-row"><span class="label">AQI:</span> <span id="indoor-aqi">{{ latest[3] }}</span></div>
+        </div>
+        <!-- Outdoor Card -->
+        <div class="card">
+          <h2>Outdoor Climate Monitor</h2>
+          <form class="location-form" method="POST" action="/" {% if demo_mode %}onsubmit="return false;"{% endif %}>
+            <label for="location" class="label">Location:</label>
+            <input type="text" id="location" name="location" class="location-input" value="{{ outdoor_location or '' }}" required {% if demo_mode %}readonly{% endif %}>
+            <button type="submit" class="location-btn" {% if demo_mode %}disabled style="opacity:0.6;cursor:not-allowed;"{% endif %}>Change</button>
+          </form>
+          <div class="data-row"><span class="label">Temperature:</span> <span id="outdoor-temp">{{ outdoor.temperature }}</span>°C</div>
+          <div class="data-row"><span class="label">Humidity:</span> <span id="outdoor-hum">{{ outdoor.humidity }}</span>%</div>
+          <div class="data-row"><span class="label">AQI:</span> <span id="outdoor-aqi">{{ outdoor.aqi }}</span></div>
+        </div>
+        <!-- Safety Card -->
+        <div class="card">
+          <h2>Environmental Safety Monitor</h2>
+          <div class="data-row">
+            <span class="label">Gas Detected:</span>
+            <span id="last-gas-ago" class="{{ 'status-alert' if last_gas_ago != 'Never' and last_gas_ago != 'years ago' else 'status-ok' }}">
+              Last {{ last_gas_ago }}{% if last_gas_time and last_gas_time != "--" %} {% endif %}
+            </span>
+          </div>
+          <div class="data-row">
+            <span class="label">Motion Detected:</span>
+            <span id="last-motion-ago" class="{{ 'status-alert' if last_motion_ago != 'Never' and last_motion_ago != 'years ago' else 'status-ok' }}">
+              Last {{ last_motion_ago }}{% if last_motion_time and last_motion_time != "--" %} {% endif %}
+            </span>
+          </div>
+          <div class="data-row" style="margin-top:18px;">
+            <label for="email-alert-toggle" style="color:#a3bffa; font-weight:bold; margin-right:12px;">Email Alert:</label>
+            <label class="switch-toggle">
+              <input type="checkbox" id="email-alert-toggle" {% if email_alert_enabled %}checked{% endif %} {% if demo_mode %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+            <span id="email-alert-status" style="color:#6ea8fe; margin-left:16px; font-size:1.08em;">
+              {% if email_alert_enabled %}Enabled{% else %}Disabled{% endif %}
+            </span>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Live Camera Monitor</h2>
+          <div style="display: flex; flex-direction: row; gap: 16px; margin-top: 24px;">
+            <button class="location-btn camera-btn" style="flex: 1; font-size: 1.00em; padding: 16px 0;" onclick="openCameraPopup()">View Live</button>
+            <button class="location-btn camera-btn" style="flex: 1; font-size: 1.00em; padding: 16px 0;">Clips</button>
+          </div>
+        </div>
+        <!-- Camera Popup Modal -->
+        <div id="cameraPopup" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(24,31,42,0.92); z-index:1000; align-items:center; justify-content:center;">
+          <div style="background:#232c3b; border-radius:18px; padding:32px 28px; max-width:90vw; max-height:80vh; box-shadow:0 8px 32px #0008; display:flex; flex-direction:column; align-items:center; position:relative;">
+            <button onclick="closeCameraPopup()" style="position:absolute; top:16px; right:16px; background:none; border:none; color:#e0e6ed; font-size:2em; cursor:pointer;">&times;</button>
+            <h2 style="color:#6ea8fe; margin-bottom:18px;">Live Camera Feed</h2>
+            <!-- Replace src with your camera stream URL -->
+            <iframe src="about:blank" style="width:480px; height:320px; border:none; border-radius:12px; background:#111;" allowfullscreen></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="tab-content-table" style="display:none;">
+      <div class="data-table-container">
+        <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin-bottom: 18px;">
+          <label>
+            <span style="color:#6ea8fe;font-weight:bold;">Date:</span>
+            <input type="date" id="filter-date" style="background:#1a2233;color:#e0e6ed;border:1px solid #2952a3;border-radius:6px;padding:4px 8px;">
+          </label>
+          <label>
+            <span style="color:#6ea8fe;font-weight:bold;">Gas Detected:</span>
+            <select id="filter-gas" style="background:#1a2233;color:#e0e6ed;border:1px solid #2952a3;border-radius:6px;padding:4px 8px;">
+              <option value="">All</option>
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+            </select>
+          </label>
+          <label>
+            <span style="color:#6ea8fe;font-weight:bold;">Motion Detected:</span>
+            <select id="filter-motion" style="background:#1a2233;color:#e0e6ed;border:1px solid #2952a3;border-radius:6px;padding:4px 8px;">
+              <option value="">All</option>
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+            </select>
+          </label>
+          <label>
+            <span style="color:#6ea8fe;font-weight:bold;">Rows per page:</span>
+            <select id="rows-per-page" style="background:#1a2233;color:#e0e6ed;border:1px solid #2952a3;border-radius:6px;padding:4px 8px;">
+              <option value="100">100</option>
+              <option value="5000">5000</option>
+              <option value="10000">10000</option>
+              <option value="all">All</option>
+            </select>
+          </label>
+        </div>
+        <table class="data-table" id="main-data-table">
+          <thead>
+            <tr>
+              <th>
+                Timestamp
+                <!-- No sort, only filter by date -->
+              </th>
+              <th>
+                Temperature (°C)
+                <button class="sort-btn" data-col="1" data-dir="asc" title="Sort Asc" style="background:none;border:none;color:#6ea8fe;cursor:pointer;">▲</button>
+                <button class="sort-btn" data-col="1" data-dir="desc" title="Sort Desc" style="background:none;border:none;color:#6ea8fe;cursor:pointer;">▼</button>
+              </th>
+              <th>
+                Humidity (%)
+                <button class="sort-btn" data-col="2" data-dir="asc" title="Sort Asc" style="background:none;border:none;color:#6ea8fe;cursor:pointer;">▲</button>
+                <button class="sort-btn" data-col="2" data-dir="desc" title="Sort Desc" style="background:none;border:none;color:#6ea8fe;cursor:pointer;">▼</button>
+              </th>
+              <th>
+                AQI
+                <button class="sort-btn" data-col="3" data-dir="asc" title="Sort Asc" style="background:none;border:none;color:#6ea8fe;cursor:pointer;">▲</button>
+                <button class="sort-btn" data-col="3" data-dir="desc" title="Sort Desc" style="background:none;border:none;color:#6ea8fe;cursor:pointer;">▼</button>
+              </th>
+              <th>Gas Detected</th>
+              <th>Motion Detected</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            {% for row in history %}
+            <tr>
+              <td>{{ row[0] }}</td>
+              <td>{{ row[1] }}</td>
+              <td>{{ row[2] }}</td>
+              <td>{{ row[3] }}</td>
+              <td>{{ "Yes" if row[4] else "No" }}</td>
+              <td>{{ "Yes" if row[5] else "No" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div id="table-pagination" style="margin-top:18px;display:flex;gap:8px;justify-content:center;"></div>
+      </div>
+    </div>
+    <!-- Modern Floating Centered Tabs with Shadow and Blur -->
+    <div class="tab-frosted-overlay"></div>
+    <div class="tab-container-modern tab-centered">
+      <button id="tab-live" class="tab-btn-modern active" title="Show Live Data">
+        <span style="vertical-align:middle;">&#128246;</span> Live View
+      </button>
+      <button id="tab-table" class="tab-btn-modern" title="Show Table Data">
+        <span style="vertical-align:middle;">&#128202;</span> Detailed View
+      </button>
+      <button id="tab-chatbot" class="tab-btn-modern" title="Show Chatbot">
+        <span style="vertical-align:middle;"></span>Chatbot (Coming Soon)
+      </button>
+    </div>
+    <style>
+      .switch-toggle {
+        position: relative;
+        display: inline-block;
+        width: 56px;
+        height: 32px;
+        vertical-align: middle;
+      }
+      .switch-toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #2d3952;
+        transition: .3s;
+        border-radius: 32px;
+        box-shadow: 0 2px 8px #0003;
+      }
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 3px;
+        background-color: #fff;
+        transition: .3s;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px #0002;
+      }
+      .switch-toggle input:checked + .slider {
+        background-color: #2952a3;
+      }
+      .switch-toggle input:checked + .slider:before {
+        transform: translateX(24px);
+        background-color: #4fd1c5;
+      }
+      @media (max-width: 600px) {
+        .switch-toggle {
+          width: 44px;
+          height: 26px;
+        }
+        .slider:before {
+          height: 20px;
+          width: 20px;
+          left: 3px;
+          bottom: 3px;
+        }
+        .switch-toggle input:checked + .slider:before {
+          transform: translateX(16px);
+        }
+      }
+    </style>
+    <script src="/static/script.js"></script>
+    <script>
+      // Email Alert Toggle AJAX
+      document.addEventListener('DOMContentLoaded', function() {
+        var toggle = document.getElementById('email-alert-toggle');
+        var status = document.getElementById('email-alert-status');
+        if (toggle && !{{ 'true' if demo_mode else 'false' }}) {
+          toggle.addEventListener('change', function() {
+            fetch('/toggle_email_alert', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({enabled: toggle.checked})
+            })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                status.textContent = data.enabled ? "Enabled" : "Disabled";
+                status.style.color = data.enabled ? "#4fd1c5" : "#f56565";
+              } else {
+                status.textContent = "Error";
+                status.style.color = "#f56565";
+              }
+            })
+            .catch(() => {
+              status.textContent = "Error";
+              status.style.color = "#f56565";
+            });
+          });
+        }
+      });
+
+      // Live update polling for sensor data
+      function updateLiveData() {
+        fetch('/api/latest')
+          .then(res => res.json())
+          .then(data => {
+            // Indoor
+            document.getElementById('indoor-time').textContent = data.latest.time;
+            document.getElementById('indoor-temp').textContent = data.latest.temperature;
+            document.getElementById('indoor-hum').textContent = data.latest.humidity;
+            document.getElementById('indoor-aqi').textContent = data.latest.aqi;
+            // Outdoor
+            document.getElementById('outdoor-temp').textContent = data.outdoor.temperature;
+            document.getElementById('outdoor-hum').textContent = data.outdoor.humidity;
+            document.getElementById('outdoor-aqi').textContent = data.outdoor.aqi;
+            // Safety
+            document.getElementById('last-gas-ago').textContent = "Last " + data.last_gas_ago;
+            document.getElementById('last-motion-ago').textContent = "Last " + data.last_motion_ago;
+          })
+          .catch(() => {});
+      }
+      setInterval(updateLiveData, 5000); // Update every 5 seconds
+
+      // Live clock (updates every second)
+      function updateClock() {
+        const now = new Date();
+        // Format: YYYY-MM-DD HH:MM:SS
+        const pad = n => n.toString().padStart(2, '0');
+        const str = now.getFullYear() + '-' +
+          pad(now.getMonth() + 1) + '-' +
+          pad(now.getDate()) + ' ' +
+          pad(now.getHours()) + ':' +
+          pad(now.getMinutes()) + ':' +
+          pad(now.getSeconds());
+        document.getElementById('live-clock').textContent = str;
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+    </script>
+  </div>
+</body>
+</html>
