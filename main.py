@@ -301,7 +301,10 @@ def login():
                 session.pop('2fa_pending', None)
                 return redirect(url_for('index'))
         else:
-            password = request.form['password']
+            password = request.form.get('password')
+            if not password:
+                return "Missing password", 400
+
             if password == APP_PASSWORD:
                 if TOTP_SECRET:
                     session['2fa_pending'] = True
